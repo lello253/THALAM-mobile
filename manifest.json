@@ -1,0 +1,19 @@
+{
+  "name": "THALAM // A Second Mind",
+  "short_name": "THALAM",
+  "description": "Lavagna infinita spaziale e connettoma cerebrale offline",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#030408",
+  "theme_color": "#030408",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23030408'/%3E%3Ccircle cx='256' cy='256' r='140' fill='none' stroke='%237dd3fc' stroke-width='24'/%3E%3Ccircle cx='256' cy='256' r='48' fill='%23c084fc'/%3E%3C/svg%3E",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

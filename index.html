@@ -3179,28 +3179,50 @@
             if (infW <= 0 || infH <= 0) return;
             infCtx.clearRect(0, 0, infW, infH);
 
-            if (appState.gridStyle !== 'none') {
-                const baseStep = 34;
-                const step = baseStep * board.cam.zoom;
-
-                // Disegna i quadretti/puntini in scala reale col foglio (evitando solo aliasing sotto i 5px)
-                if (step >= 5) {
-                    const pat = getGridPattern(step);
-                    if (pat) {
-                        const tileSize = Math.max(4, Math.round(step));
-                        const offsetX = ((infW / 2 - board.cam.x * board.cam.zoom) % tileSize + tileSize) % tileSize;
-                        const offsetY = ((infH / 2 - board.cam.y * board.cam.zoom) % tileSize + tileSize) % tileSize;
-                        infCtx.save();
-                        infCtx.translate(offsetX, offsetY);
-                        infCtx.fillStyle = pat;
-                        infCtx.fillRect(-offsetX, -offsetY, infW, infH);
-                        infCtx.restore();
-                    }
-                }
-            }
-
             const topLeft = screenToWorld(0, 0);
             const bottomRight = screenToWorld(infW, infH);
+
+            if (appState.gridStyle !== 'none') {
+                let worldStep = 34;
+                // Raggruppa i quadretti solo quando si rimpicciolisce molto (zoom < 50%),
+                // mentre ingrandendo (fino al 1000%) ogni quadretto cresce 1:1 con il tratto
+                while (worldStep * board.cam.zoom < 16) worldStep *= 2;
+
+                const screenStep = worldStep * board.cam.zoom;
+                const firstWorldX = Math.floor(topLeft.x / worldStep) * worldStep;
+                const firstWorldY = Math.floor(topLeft.y / worldStep) * worldStep;
+                const startScreen = worldToScreen(firstWorldX, firstWorldY);
+                const [r1, g1, b1] = appState.palette.rgb1;
+
+                infCtx.save();
+                if (appState.gridStyle === 'lines') {
+                    infCtx.strokeStyle = `rgba(${r1}, ${g1}, ${b1}, 0.11)`;
+                    infCtx.lineWidth = Math.min(1.8, Math.max(1.0, Math.sqrt(board.cam.zoom)));
+                    infCtx.beginPath();
+                    for (let x = startScreen.x; x <= infW + screenStep; x += screenStep) {
+                        infCtx.moveTo(x, 0);
+                        infCtx.lineTo(x, infH);
+                    }
+                    for (let y = startScreen.y; y <= infH + screenStep; y += screenStep) {
+                        infCtx.moveTo(0, y);
+                        infCtx.lineTo(infW, y);
+                    }
+                    infCtx.stroke();
+                } else if (appState.gridStyle === 'dots') {
+                    const dotR = Math.min(2.6, Math.max(1.1, 1.1 * Math.sqrt(board.cam.zoom)));
+                    infCtx.fillStyle = `rgba(${r1}, ${g1}, ${b1}, 0.24)`;
+                    infCtx.beginPath();
+                    for (let x = startScreen.x; x <= infW + screenStep; x += screenStep) {
+                        for (let y = startScreen.y; y <= infH + screenStep; y += screenStep) {
+                            infCtx.moveTo(x + dotR, y);
+                            infCtx.arc(x, y, dotR, 0, Math.PI * 2);
+                        }
+                    }
+                    infCtx.fill();
+                }
+                infCtx.restore();
+            }
+
             const pad = 60 / board.cam.zoom;
 
             for (let i = 0; i < board.strokes.length; i++) {

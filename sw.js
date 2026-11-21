@@ -1,4 +1,4 @@
-const CACHE_NAME = 'thalam-vault-v9';
+const CACHE_NAME = 'thalam-vault-v10';
 const CORE_ASSETS = [
   './',
   './index.html',

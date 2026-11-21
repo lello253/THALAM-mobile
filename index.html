@@ -2993,7 +2993,7 @@
         }
 
         function getGridPattern(step) {
-            const tileSize = Math.max(8, Math.round(step));
+            const tileSize = Math.max(4, Math.round(step));
             const [r1, g1, b1] = appState.palette.rgb1;
             const key = `${appState.gridStyle}_${tileSize}_${r1}_${g1}_${b1}`;
             if (cachedGridPattern && cachedGridKey === key) return cachedGridPattern;
@@ -3004,13 +3004,14 @@
             const octx = off.getContext('2d');
 
             if (appState.gridStyle === 'dots') {
-                octx.fillStyle = `rgba(${r1}, ${g1}, ${b1}, 0.22)`;
+                const dotRadius = Math.max(0.8, Math.min(3.2, tileSize / 34));
+                octx.fillStyle = `rgba(${r1}, ${g1}, ${b1}, 0.24)`;
                 octx.beginPath();
-                octx.arc(1, 1, 1.0, 0, Math.PI * 2);
+                octx.arc(dotRadius, dotRadius, dotRadius, 0, Math.PI * 2);
                 octx.fill();
             } else if (appState.gridStyle === 'lines') {
-                octx.strokeStyle = `rgba(${r1}, ${g1}, ${b1}, 0.09)`;
-                octx.lineWidth = 1;
+                octx.strokeStyle = `rgba(${r1}, ${g1}, ${b1}, 0.12)`;
+                octx.lineWidth = Math.max(1, Math.min(2.5, tileSize / 34));
                 octx.beginPath();
                 octx.moveTo(0, 0);
                 octx.lineTo(tileSize, 0);
@@ -3180,20 +3181,21 @@
 
             if (appState.gridStyle !== 'none') {
                 const baseStep = 34;
-                let step = baseStep * board.cam.zoom;
-                while (step < 17) step *= 2;
-                while (step > 68) step /= 2;
+                const step = baseStep * board.cam.zoom;
 
-                const pat = getGridPattern(step);
-                if (pat) {
-                    const tileSize = Math.max(8, Math.round(step));
-                    const offsetX = ((infW / 2 - board.cam.x * board.cam.zoom) % tileSize + tileSize) % tileSize;
-                    const offsetY = ((infH / 2 - board.cam.y * board.cam.zoom) % tileSize + tileSize) % tileSize;
-                    infCtx.save();
-                    infCtx.translate(offsetX, offsetY);
-                    infCtx.fillStyle = pat;
-                    infCtx.fillRect(-offsetX, -offsetY, infW, infH);
-                    infCtx.restore();
+                // Disegna i quadretti/puntini in scala reale col foglio (evitando solo aliasing sotto i 5px)
+                if (step >= 5) {
+                    const pat = getGridPattern(step);
+                    if (pat) {
+                        const tileSize = Math.max(4, Math.round(step));
+                        const offsetX = ((infW / 2 - board.cam.x * board.cam.zoom) % tileSize + tileSize) % tileSize;
+                        const offsetY = ((infH / 2 - board.cam.y * board.cam.zoom) % tileSize + tileSize) % tileSize;
+                        infCtx.save();
+                        infCtx.translate(offsetX, offsetY);
+                        infCtx.fillStyle = pat;
+                        infCtx.fillRect(-offsetX, -offsetY, infW, infH);
+                        infCtx.restore();
+                    }
                 }
             }
 

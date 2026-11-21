@@ -221,8 +221,9 @@
             position: absolute;
             inset: 0;
             z-index: 20;
-            padding: 5rem 1rem 4rem 1rem;
+            padding: 5.5rem 1rem 4.25rem 1rem;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
@@ -237,25 +238,44 @@
             pointer-events: none;
         }
 
+        #cortex-lanes-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            padding-bottom: 1.5rem;
+        }
+
         .cortex-lane {
-            background: linear-gradient(90deg, rgba(16, 21, 34, 0.90) 0%, rgba(8, 11, 19, 0.86) 100%);
+            background: linear-gradient(90deg, rgba(16, 21, 34, 0.92) 0%, rgba(8, 11, 19, 0.88) 100%);
             border: 1px solid rgba(255, 255, 255, 0.10);
             border-radius: 20px;
-            flex: 1 1 0%;
+            flex-shrink: 0;
             min-height: 92px;
             padding: 0.75rem;
             display: flex;
             flex-direction: column;
-            gap: 0.75rem;
+            gap: 0.65rem;
             overflow: hidden;
         }
         @media (min-width: 640px) {
             .cortex-lane { flex-direction: row; align-items: center; }
         }
 
+        .cortex-cards-scroller {
+            flex: 1 1 0%;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 0.25rem 0.75rem 0.35rem 0.125rem;
+            min-height: 64px;
+        }
+
         .cortex-card {
-            touch-action: none;
-            background: rgba(12, 16, 26, 0.85);
+            touch-action: pan-x;
+            background: rgba(12, 16, 26, 0.88);
             border: 1px solid rgba(255, 255, 255, 0.10);
             border-radius: 15px;
             width: 14rem;
@@ -283,12 +303,14 @@
             font-weight: 600;
         }
 
-        /* Lavagna Infinita & Schede Testo Spaziali */
+        /* Lavagna Infinita, Immagini & Schede Testo Spaziali */
         #infinite-canvas {
             touch-action: none;
             display: block;
             width: 100%;
             height: 100%;
+            position: relative;
+            z-index: 2;
         }
 
         #live-stroke-canvas {
@@ -298,6 +320,85 @@
             display: block;
             width: 100%;
             height: 100%;
+            z-index: 3;
+        }
+
+        /* Layer Immagini: sotto il canvas così puoi scriverci sopra con penna/evidenziatore */
+        #spatial-images-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .spatial-image-item {
+            position: absolute;
+            transform-origin: 0 0;
+            pointer-events: none;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .spatial-image-item.is-editable {
+            pointer-events: auto;
+            border: 1.5px dashed rgba(var(--accent-rgb), 0.75);
+            box-shadow: 0 12px 30px -4px rgba(var(--accent-rgb), 0.32);
+        }
+
+        .spatial-image-item img {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        .img-ctrl-bar {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            right: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+            background: rgba(6, 10, 18, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 8px;
+            padding: 3px 6px;
+            touch-action: none;
+            cursor: grab;
+        }
+        .img-ctrl-bar:active { cursor: grabbing; }
+
+        .img-resize-handle {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 24px;
+            height: 24px;
+            background: rgba(var(--accent-rgb), 0.9);
+            color: #030408;
+            border-top-left-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            touch-action: none;
+            cursor: nwse-resize;
+        }
+
+        /* Layer Schede di Testo Spaziali */
+        #spatial-cards-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 4;
         }
 
         .spatial-card {
@@ -312,6 +413,13 @@
             display: flex;
             flex-direction: column;
             gap: 0.25rem;
+        }
+        .card-drag-bar {
+            touch-action: none;
+            cursor: grab;
+        }
+        .card-drag-bar:active {
+            cursor: grabbing;
         }
         .spatial-card textarea { user-select: text; }
 
@@ -596,7 +704,7 @@
     <main id="main-stage" class="liquid-glass">
         
         <!-- Header Fluttuante -->
-        <div class="w-full p-3-5 md-p-5 flex flex-wrap items-start justify-between gap-2-5 z-30 pointer-events-none">
+        <div id="main-stage-header" class="w-full p-3-5 md-p-5 flex flex-wrap items-start justify-between gap-2-5 z-30 pointer-events-none">
             
             <!-- Identità, Stato Vault Offline & Toggle CORTEX -->
             <div class="pointer-events-auto flex flex-wrap items-center gap-2">
@@ -637,7 +745,7 @@
             <div class="pointer-events-auto flex flex-wrap items-center gap-2 relative">
                 
                 <!-- Campo Ricerca Avanzata (Ctrl+K) -->
-                <div class="relative">
+                <div class="relative" id="vault-search-box">
                     <div class="liquid-glass px-3-5 py-1-5 rounded-2xl flex items-center gap-2 border-15 focus-within-border">
                         <svg class="w-3-5 h-3-5 accent-text flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/>
@@ -653,8 +761,8 @@
                         <button id="clear-search-btn" onclick="clearSearch()" class="hidden text-11 text-slate-400 hover-white px-1 cursor-pointer">✕</button>
                     </div>
 
-                    <!-- Tendina Risultati Ricerca -->
-                    <div id="search-results-popover" class="hidden absolute right-0 mt-2 max-w-92vw liquid-glass p-3-5 z-50 border-25 flex flex-col gap-2-5" style="width:390px;background:rgba(8,11,19,0.97);">
+                    <!-- Tendina Risultati Ricerca (posizionata dinamicamente entro il viewport del tablet) -->
+                    <div id="search-results-popover" class="hidden fixed liquid-glass p-3-5 z-50 border-25 flex flex-col gap-2-5" style="width:min(390px, calc(100vw - 24px));background:rgba(8,11,19,0.98);box-shadow:0 24px 48px rgba(0,0,0,0.92);">
                         <div class="flex items-center justify-between gap-1 overflow-x-auto pb-1 border-b-10">
                             <div class="flex items-center gap-1" id="search-lobe-filters">
                                 <button onclick="setSearchLobeFilter('ALL', this)" class="lobe-pill px-2 py-0-5 rounded-lg text-10 font-mono-code bg-glass-20 text-white cursor-pointer">TUTTI</button>
@@ -670,7 +778,7 @@
                     </div>
                 </div>
 
-                <!-- Controllo Estensione Midollo Spinale -->
+                <!-- Controllo Estensione Midollo Spinale (nascosto automaticamente in vista CORTEX) -->
                 <div id="spine-controls-pill" class="liquid-glass px-3 py-1-5 rounded-2xl flex items-center gap-2">
                     <span class="text-10 font-mono-code text-slate-300">MIDOLLO:</span>
                     <input type="range" id="spine-slider" min="0" max="100" value="35" oninput="setSpineExtension(this.value)" class="w-14 sm-w-20">
@@ -696,16 +804,16 @@
 
         <!-- Vista CORTEX: Righe Anatomiche Colorate & Drag-and-Drop -->
         <div id="cortex-matrix-view" class="cortex-hidden">
-            <div class="flex items-center justify-between px-1">
-                <div class="flex items-center gap-2-5">
-                    <span class="text-xs font-mono-code tracking-20 uppercase text-white font-semibold">MAPPA CORTICALE // ORGANIZZAZIONE LOBARE</span>
+            <div class="flex items-center justify-between px-1 flex-shrink-0">
+                <div class="flex items-center gap-2-5 min-w-0">
+                    <span class="text-xs font-mono-code tracking-20 uppercase text-white font-semibold truncate">MAPPA CORTICALE // ORGANIZZAZIONE LOBARE</span>
                     <span class="hidden sm-inline text-10 font-mono-code text-slate-400">Trascina una lavagna tra le righe o clicca sul sottotitolo per rinominarlo</span>
                 </div>
-                <button onclick="toggleCortexView(false)" class="text-11 font-mono-code px-2-5 py-1 rounded-xl bg-glass-7 hover-bg text-slate-200 cursor-pointer">
+                <button onclick="toggleCortexView(false)" class="text-11 font-mono-code px-2-5 py-1 rounded-xl bg-glass-7 hover-bg text-slate-200 cursor-pointer flex-shrink-0">
                     TORNA AL 3D ✕
                 </button>
             </div>
-            <div id="cortex-lanes-container" class="flex-1 flex flex-col gap-2-5 min-h-0"></div>
+            <div id="cortex-lanes-container"></div>
         </div>
 
         <!-- Tooltip Anatomico Hover -->
@@ -719,7 +827,7 @@
         </div>
 
         <!-- Telemetria Anatomica in Basso -->
-        <div class="mt-auto p-3-5 md-p-5 z-20 pointer-events-none flex flex-wrap justify-between items-end gap-2-5">
+        <div id="main-stage-footer" class="mt-auto p-3-5 md-p-5 z-20 pointer-events-none flex flex-wrap justify-between items-end gap-2-5">
             <div class="liquid-glass px-4 py-2 pointer-events-auto flex flex-wrap items-center gap-3 text-11 font-mono-code text-slate-300">
                 <span>LAVAGNE: <strong id="count-active-neurons" class="accent-text">0</strong></span>
                 <span style="color:rgba(255,255,255,0.2);">|</span>
@@ -828,20 +936,24 @@
             <div id="archive-list-container" class="space-y-2"></div>
         </div>
 
-        <!-- Vista 2: LAVAGNA INFINITA DUAL-CANVAS O(1) -->
+        <!-- Vista 2: LAVAGNA INFINITA DUAL-CANVAS O(1) + IMMAGINI + TESTI -->
         <div id="infinite-board-workspace" class="relative flex-1 w-full h-full overflow-hidden bg-board">
+            <!-- Layer 1 (sotto): Immagini incollate/importate su cui si può disegnare -->
+            <div id="spatial-images-layer"></div>
+
+            <!-- Layer 2 (centro): Tratti salvati & tratti live -->
             <canvas id="infinite-canvas"></canvas>
             <canvas id="live-stroke-canvas"></canvas>
 
-            <!-- Layer Schede di Testo Spaziali -->
-            <div id="spatial-cards-layer" class="absolute inset-0 pointer-events-none overflow-hidden z-10"></div>
+            <!-- Layer 3 (sopra): Schede di Testo Spaziali trascinabili -->
+            <div id="spatial-cards-layer"></div>
 
             <!-- Toast Hold-to-Snap & Notifiche Lavagna -->
             <div id="snap-toast" class="opacity-0 pointer-events-none absolute top-3 left-half z-30 liquid-glass px-3-5 py-1-5 rounded-full text-11 font-mono-code accent-text transition" style="background:rgba(8,11,19,0.95);">
                 ✨ Forma raddrizzata
             </div>
 
-            <!-- Indicatore Zoom -->
+            <!-- Indicatore Zoom (fino a 1000%) -->
             <div id="board-hud-zoom" class="pointer-events-none absolute top-2-5 right-3 z-20 text-10 font-mono-code text-slate-400 bg-black-45 px-2 py-0-5 rounded-lg border-1">
                 100%
             </div>
@@ -881,6 +993,13 @@
                     </button>
                     <button type="button" onclick="addSpatialTextCard()" class="px-2-5 py-1-5 rounded-xl text-11 font-mono-code bg-glass-5 text-slate-300 hover-white border-1 cursor-pointer">
                         🔤 Testo
+                    </button>
+                    <label title="Inserisci immagine o incolla con Ctrl+V" class="px-2-5 py-1-5 rounded-xl text-11 font-mono-code bg-glass-5 text-slate-300 hover-white border-1 cursor-pointer flex items-center">
+                        🖼️ Img
+                        <input type="file" id="board-image-input" accept="image/*" class="hidden" onchange="handleImageFileSelect(event)">
+                    </label>
+                    <button type="button" id="btn-toggle-img-edit" onclick="toggleImageEditMode()" title="Sblocca immagini per spostarle o ridimensionarle" class="hidden px-2 py-1-5 rounded-xl text-11 font-mono-code bg-glass-5 text-slate-300 hover-white border-1 cursor-pointer">
+                        📐
                     </button>
                     <button type="button" data-tool="pan" onclick="setBoardTool('pan', this)" class="board-tool-btn px-2-5 py-1-5 rounded-xl text-11 font-mono-code bg-glass-5 text-slate-300 hover-white border-1 cursor-pointer">
                         ✋
@@ -1034,6 +1153,7 @@
             return backendNeurons.some(n =>
                 n.id !== 'mem_welcome' ||
                 (Array.isArray(n.strokes) && n.strokes.length > 0) ||
+                (Array.isArray(n.images) && n.images.length > 0) ||
                 (Array.isArray(n.cards) && n.cards.length > 1)
             );
         }
@@ -1226,8 +1346,20 @@
         }
 
         /* --------------------------------------------------------------------------
-           VISTA CORTEX (RIGHE COLORATE + DRAG & DROP MOUSE & TOUCH)
+           VISTA CORTEX (RIGHE COLORATE + ALTEZZA DINAMICA + DRAG & DROP)
            -------------------------------------------------------------------------- */
+        function updateCortexLayoutSpacing() {
+            const cortexView = document.getElementById('cortex-matrix-view');
+            const headerEl = document.getElementById('main-stage-header');
+            const footerEl = document.getElementById('main-stage-footer');
+            if (!cortexView || !headerEl || !footerEl) return;
+
+            const topPad = Math.max(72, Math.ceil(headerEl.offsetHeight + 10));
+            const bottomPad = Math.max(68, Math.ceil(footerEl.offsetHeight + 12));
+            cortexView.style.paddingTop = `${topPad}px`;
+            cortexView.style.paddingBottom = `${bottomPad}px`;
+        }
+
         function toggleCortexView(forceState) {
             const nextState = typeof forceState === 'boolean' ? forceState : !appState.cortexOpen;
             appState.cortexOpen = nextState;
@@ -1245,15 +1377,16 @@
                 btn.classList.add('border-45', 'bg-glass-15');
                 btnDot.style.background = '#34d399';
                 btnDot.style.boxShadow = '0 0 10px #34d399';
-                if (spineControls) spineControls.classList.add('opacity-40', 'pointer-events-none');
+                if (spineControls) spineControls.classList.add('hidden');
                 renderCortexLanes();
+                requestAnimationFrame(updateCortexLayoutSpacing);
             } else {
                 canvasWrap.classList.remove('cortex-dimmed');
                 cortexView.classList.add('cortex-hidden');
                 btn.classList.remove('border-45', 'bg-glass-15');
                 btnDot.style.background = '#38bdf8';
                 btnDot.style.boxShadow = '0 0 8px #38bdf8';
-                if (spineControls) spineControls.classList.remove('opacity-40', 'pointer-events-none');
+                if (spineControls) spineControls.classList.remove('hidden');
             }
         }
 
@@ -1379,18 +1512,19 @@
                 }
 
                 const cardsRow = document.createElement('div');
-                cardsRow.className = 'flex-1 flex items-center gap-2-5 overflow-x-auto py-1 px-0-5 min-h-64';
+                cardsRow.className = 'cortex-cards-scroller';
 
                 if (items.length === 0) {
                     cardsRow.innerHTML = `
-                        <div class="w-full h-14 rounded-xl border-dashed flex items-center justify-center text-11 font-mono-code text-slate-500">
-                            Trascina qui una lavagna per assegnarla al ${cfg.name}
+                        <div class="w-full h-14 rounded-xl border-dashed flex items-center justify-center text-11 font-mono-code text-slate-500 px-3 text-center">
+                            Tocca i pallini colorati o trascina qui una lavagna per assegnarla al ${cfg.name}
                         </div>
                     `;
                 } else {
                     items.forEach(mem => {
                         const strokeCount = (mem.strokes || []).length;
                         const cardCount = (mem.cards || []).length;
+                        const imgCount = (mem.images || []).length;
                         const isSelected = mem.id === appState.activeNeuronId;
                         const isBeingDragged = mem.id === activeDragMemId;
                         const card = document.createElement('div');
@@ -1400,7 +1534,7 @@
                         const firstCard = (mem.cards || []).find(c => c.text && c.text.trim());
                         const preview = firstCard
                             ? firstCard.text.trim().slice(0, 48) + (firstCard.text.trim().length > 48 ? '...' : '')
-                            : `${strokeCount} tratti • ${cardCount} note`;
+                            : `${strokeCount} tratti • ${cardCount} note${imgCount ? ` • ${imgCount} img` : ''}`;
 
                         const quickDotsHtml = LOBE_ORDER.map(lk => {
                             const lCfg = LOBE_CONFIG[lk];
@@ -1472,12 +1606,17 @@
                 lane.appendChild(cardsRow);
                 container.appendChild(lane);
             });
+            updateCortexLayoutSpacing();
         }
 
         window.addEventListener('pointermove', (e) => {
             if (!activeDragMemId) return;
 
-            if (!activeDragMoved && (Math.abs(e.clientX - dragStartPos.x) > 6 || Math.abs(e.clientY - dragStartPos.y) > 6)) {
+            const dx = e.clientX - dragStartPos.x;
+            const dy = e.clientY - dragStartPos.y;
+
+            // Su touch, uno swipe orizzontale scorre la corsia; trascinare verticalmente tra le corsie attiva il drag
+            if (!activeDragMoved && (Math.abs(dy) > 14 || (e.pointerType === 'mouse' && Math.hypot(dx, dy) > 6))) {
                 activeDragMoved = true;
                 const mem = backendNeurons.find(n => n.id === activeDragMemId);
                 if (mem) {
@@ -1502,21 +1641,31 @@
             }
         });
 
-        window.addEventListener('pointerup', () => {
+        window.addEventListener('pointerup', (e) => {
             if (!activeDragMemId) return;
             const clickedId = activeDragMemId;
             const wasMoved = activeDragMoved;
+            const totalDist = Math.hypot(e.clientX - dragStartPos.x, e.clientY - dragStartPos.y);
             activeDragMemId = null;
             activeDragMoved = false;
             removeDragFollower();
 
-            if (!wasMoved) {
+            // Apre la lavagna solo se è stato un vero tap/click (senza scorrimento)
+            if (!wasMoved && totalDist < 10) {
                 const mem = backendNeurons.find(n => n.id === clickedId);
                 if (mem) {
                     toggleArchiveDrawer(false);
                     openExistingNeuron(mem, mem._mappedNodeCode || mem.node_code || 'CORTEX');
                 }
             }
+            renderCortexLanes();
+        });
+
+        window.addEventListener('pointercancel', () => {
+            if (!activeDragMemId) return;
+            activeDragMemId = null;
+            activeDragMoved = false;
+            removeDragFollower();
             renderCortexLanes();
         });
 
@@ -2112,10 +2261,38 @@
         }
 
         /* --------------------------------------------------------------------------
-           2. MOTORE DI RICERCA FULL-TEXT
+           2. MOTORE DI RICERCA FULL-TEXT (POSIZIONAMENTO INTELLIGENTE SU TABLET)
            -------------------------------------------------------------------------- */
+        function positionSearchPopover() {
+            const box = document.getElementById('vault-search-box');
+            const pop = document.getElementById('search-results-popover');
+            if (!box || !pop || pop.classList.contains('hidden')) return;
+
+            const rect = box.getBoundingClientRect();
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const margin = 12;
+            const popW = Math.min(390, vw - margin * 2);
+
+            pop.style.width = `${popW}px`;
+
+            let left = rect.right - popW;
+            if (left < margin) left = margin;
+            if (left + popW > vw - margin) left = vw - margin - popW;
+
+            let top = rect.bottom + 8;
+            const maxH = Math.max(180, vh - top - margin);
+
+            pop.style.left = `${left}px`;
+            pop.style.right = 'auto';
+            pop.style.top = `${top}px`;
+            pop.style.maxHeight = `${maxH}px`;
+        }
+
         function openSearchPalette() {
-            document.getElementById('search-results-popover').classList.remove('hidden');
+            const pop = document.getElementById('search-results-popover');
+            pop.classList.remove('hidden');
+            positionSearchPopover();
             renderSearchResults();
         }
 
@@ -2153,12 +2330,13 @@
 
         function extractBoardSnippet(mem, queryLower) {
             const cards = (mem.cards || []).filter(c => c.text && c.text.trim());
+            const imgCount = (mem.images || []).length;
             if (!queryLower) {
                 if (cards.length > 0) {
                     const txt = cards[0].text.trim();
                     return escapeHTML(txt.slice(0, 90) + (txt.length > 90 ? '...' : ''));
                 }
-                return `${(mem.strokes || []).length} tratti disegnati`;
+                return `${(mem.strokes || []).length} tratti${imgCount ? ` • ${imgCount} immagini` : ''}`;
             }
             for (const c of cards) {
                 const idx = c.text.toLowerCase().indexOf(queryLower);
@@ -2238,6 +2416,7 @@
                 `;
                 listEl.appendChild(card);
             });
+            positionSearchPopover();
         }
 
         function focusAndOpenMemory(mem) {
@@ -2297,6 +2476,7 @@
             sorted.forEach(mem => {
                 const strokeCount = (mem.strokes || []).length;
                 const cardCount = (mem.cards || []).length;
+                const imgCount = (mem.images || []).length;
                 const lobeCfg = getLobeStyle(mem.lobe);
                 const badgeColor = lobeCfg ? lobeCfg.hex : 'var(--accent-primary)';
                 const row = document.createElement('div');
@@ -2308,7 +2488,7 @@
                 info.innerHTML = `
                     <div class="flex items-center gap-2">
                         <span class="text-9 font-mono-code px-1-5 py-0-5 rounded bg-glass-10" style="color:${badgeColor}">${mem.lobe.replace('CORTEX_', '')}</span>
-                        <span class="text-10 font-mono-code text-slate-400">${strokeCount} tratti • ${cardCount} note</span>
+                        <span class="text-10 font-mono-code text-slate-400">${strokeCount} tratti • ${cardCount} note${imgCount ? ` • ${imgCount} img` : ''}</span>
                     </div>
                     <h4 class="text-xs font-semibold text-white truncate mt-1">${escapeHTML(mem.title.replace(/_/g, ' '))}</h4>
                 `;
@@ -2565,7 +2745,6 @@
                 return { sx: cx + x1 * scale, sy: cy + y2 * scale };
             };
 
-            // 1. Tratti Assonali Standard
             brainCtx.lineWidth = 0.65;
             brainCtx.strokeStyle = `rgba(${r1},${g1},${b1},0.13)`;
             brainCtx.beginPath();
@@ -2578,7 +2757,6 @@
             }
             brainCtx.stroke();
 
-            // 2. Plessi e Radici Spinali
             brainCtx.lineWidth = 0.88;
             brainCtx.strokeStyle = `rgba(${r1},${g1},${b1},0.28)`;
             brainCtx.beginPath();
@@ -2591,7 +2769,6 @@
             }
             brainCtx.stroke();
 
-            // 3. Fasci Piramidali & Corona Radiata Curva
             brainCtx.lineWidth = 1.15;
             brainCtx.strokeStyle = `rgba(${r2},${g2},${b2},0.38)`;
             brainCtx.beginPath();
@@ -2611,7 +2788,6 @@
             }
             brainCtx.stroke();
 
-            // 4. Corpo Calloso ad Arco
             brainCtx.lineWidth = 0.95;
             brainCtx.strokeStyle = `rgba(${r2},${g2},${b2},0.26)`;
             brainCtx.beginPath();
@@ -2631,7 +2807,6 @@
             }
             brainCtx.stroke();
 
-            // 5. Sinapsi Semantiche
             brainCtx.lineWidth = 1.55;
             brainCtx.strokeStyle = 'rgba(255,255,255,0.62)';
             brainCtx.beginPath();
@@ -2651,7 +2826,6 @@
             }
             brainCtx.stroke();
 
-            // Relè interno piramidale
             brainCtx.lineWidth = 1.65;
             brainCtx.strokeStyle = 'rgba(255,255,255,0.36)';
             brainCtx.beginPath();
@@ -2671,7 +2845,6 @@
             }
             brainCtx.stroke();
 
-            // 6. Potenziali d'Azione Sferici
             brainCtx.fillStyle = 'rgba(255,255,255,0.92)';
             brainCtx.beginPath();
             for (let k = actionPotentials.length - 1; k >= 0; k--) {
@@ -2702,7 +2875,6 @@
             }
             brainCtx.fill();
 
-            // 7. Soma Neuronali SFERICI tramite sprite GPU (60+ FPS)
             const specialNodes = [];
             for (let i = 0; i < neurons3D.length; i++) {
                 const n = neurons3D[i];
@@ -2726,7 +2898,6 @@
             }
             brainCtx.globalAlpha = 1.0;
 
-            // Nodi attivi (lavagne salvate, hover, ricerca) con doppio alone sferico
             for (let i = 0; i < specialNodes.length; i++) {
                 const n = specialNodes[i];
                 const isHovered = brainCam.hoveredNeuron === n;
@@ -2752,17 +2923,21 @@
         }
 
         /* --------------------------------------------------------------------------
-           5. MOTORE LAVAGNA INFINITA INCREMENTALE O(1)
+           5. MOTORE LAVAGNA INFINITA INCREMENTALE O(1) (ZOOM FINO AL 1000%)
            -------------------------------------------------------------------------- */
         const infCanvas = document.getElementById('infinite-canvas');
         const infCtx = infCanvas.getContext('2d');
         const liveCanvas = document.getElementById('live-stroke-canvas');
         const liveCtx = liveCanvas.getContext('2d');
         const spatialCardsLayer = document.getElementById('spatial-cards-layer');
+        const spatialImagesLayer = document.getElementById('spatial-images-layer');
         let infW = 0, infH = 0;
 
         let cachedGridPattern = null;
         let cachedGridKey = '';
+
+        const MAX_BOARD_ZOOM = 10.0; // 1000%
+        const MIN_BOARD_ZOOM = 0.25; // 25%
 
         const board = {
             cam: { x: 0, y: 0, zoom: 1.0 },
@@ -2771,6 +2946,8 @@
             size: 2.0,
             strokes: [],
             cards: [],
+            images: [],
+            imageEditMode: false,
             activeStroke: null,
             lastRenderedIdx: 0,
             pointers: new Map(),
@@ -3032,6 +3209,7 @@
                 renderSingleStroke(infCtx, stroke);
             }
 
+            updateSpatialImagesTransform();
             updateSpatialCardsTransform();
 
             const zoomHud = document.getElementById('board-hud-zoom');
@@ -3120,7 +3298,7 @@
                 if (board.lastPinchDist && board.lastPanCenter) {
                     board.cam.x -= (center.x - board.lastPanCenter.x) / board.cam.zoom;
                     board.cam.y -= (center.y - board.lastPanCenter.y) / board.cam.zoom;
-                    board.cam.zoom = Math.max(0.25, Math.min(4.0, board.cam.zoom * (dist / board.lastPinchDist)));
+                    board.cam.zoom = Math.max(MIN_BOARD_ZOOM, Math.min(MAX_BOARD_ZOOM, board.cam.zoom * (dist / board.lastPinchDist)));
                 }
                 board.lastPinchDist = dist;
                 board.lastPanCenter = center;
@@ -3195,12 +3373,241 @@
         infCanvas.addEventListener('wheel', (e) => {
             e.preventDefault();
             const factor = e.deltaY < 0 ? 1.1 : 0.9;
-            board.cam.zoom = Math.max(0.25, Math.min(4.0, board.cam.zoom * factor));
+            board.cam.zoom = Math.max(MIN_BOARD_ZOOM, Math.min(MAX_BOARD_ZOOM, board.cam.zoom * factor));
             renderInfiniteBoard();
         }, { passive: false });
 
         /* --------------------------------------------------------------------------
-           5B. ESPORTAZIONE LAVAGNA IN PDF (OFFLINE PURO, MULTI-PAGINA A4)
+           5A. GESTIONE IMMAGINI NELLA LAVAGNA (INCOLLA / IMPORTA / SCRIVI SOPRA)
+           -------------------------------------------------------------------------- */
+        function compressAndLoadImage(fileOrBlob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const maxDim = 1400;
+                        let w = img.width;
+                        let h = img.height;
+                        if (w > maxDim || h > maxDim) {
+                            if (w > h) {
+                                h = Math.round(h * (maxDim / w));
+                                w = maxDim;
+                            } else {
+                                w = Math.round(w * (maxDim / h));
+                                h = maxDim;
+                            }
+                        }
+                        const c = document.createElement('canvas');
+                        c.width = w;
+                        c.height = h;
+                        const ctx = c.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        const dataUrl = c.toDataURL('image/webp', 0.86);
+                        resolve({ dataUrl, naturalW: w, naturalH: h });
+                    };
+                    img.onerror = reject;
+                    img.src = reader.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(fileOrBlob);
+            });
+        }
+
+        async function insertImageToBoard(fileOrBlob) {
+            if (!fileOrBlob || !appState.activeNeuronId) return;
+            try {
+                showSnapToast('🖼️ Inserimento immagine...');
+                const { dataUrl, naturalW, naturalH } = await compressAndLoadImage(fileOrBlob);
+                const displayW = Math.min(340, Math.max(160, naturalW));
+                const displayH = Math.round(displayW * (naturalH / naturalW));
+
+                board.images.push({
+                    id: 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5),
+                    wx: board.cam.x - displayW / 2,
+                    wy: board.cam.y - displayH / 2,
+                    width: displayW,
+                    height: displayH,
+                    aspect: naturalW / naturalH,
+                    dataUrl
+                });
+
+                board.imageEditMode = true;
+                updateImageEditButtonUI();
+                rebuildSpatialImagesDOM();
+                scheduleCurrentBoardSave();
+                showSnapToast('🖼️ Trascina o blocca (📐) per scriverci sopra');
+            } catch (err) {
+                console.error(err);
+                showSnapToast('❌ Immagine non valida');
+            }
+        }
+
+        function handleImageFileSelect(e) {
+            const file = e.target.files && e.target.files[0];
+            if (file) insertImageToBoard(file);
+            e.target.value = '';
+        }
+
+        window.addEventListener('paste', (e) => {
+            if (!appState.activeNeuronId) return;
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type && item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const blob = item.getAsFile();
+                    if (blob) insertImageToBoard(blob);
+                    break;
+                }
+            }
+        });
+
+        function updateImageEditButtonUI() {
+            const btn = document.getElementById('btn-toggle-img-edit');
+            if (!btn) return;
+            if (board.images.length === 0) {
+                btn.classList.add('hidden');
+                board.imageEditMode = false;
+                return;
+            }
+            btn.classList.remove('hidden');
+            if (board.imageEditMode) {
+                btn.className = 'px-2 py-1-5 rounded-xl text-11 font-mono-code liquid-btn cursor-pointer';
+                btn.title = 'Blocca immagini per scriverci sopra';
+            } else {
+                btn.className = 'px-2 py-1-5 rounded-xl text-11 font-mono-code bg-glass-5 text-slate-300 hover-white border-1 cursor-pointer';
+                btn.title = 'Sblocca immagini per spostarle o ridimensionarle';
+            }
+        }
+
+        function toggleImageEditMode(forceState) {
+            board.imageEditMode = typeof forceState === 'boolean' ? forceState : !board.imageEditMode;
+            updateImageEditButtonUI();
+            rebuildSpatialImagesDOM();
+            if (board.imageEditMode) {
+                showSnapToast('📐 Immagini sbloccate: sposta o ridimensiona');
+            } else {
+                showSnapToast('✒️ Immagini bloccate: ora puoi scriverci sopra');
+            }
+        }
+
+        function rebuildSpatialImagesDOM() {
+            spatialImagesLayer.innerHTML = '';
+            updateImageEditButtonUI();
+
+            for (const imgObj of board.images) {
+                const el = document.createElement('div');
+                el.className = `spatial-image-item ${board.imageEditMode ? 'is-editable' : ''}`;
+                el.style.width = `${imgObj.width}px`;
+                el.style.height = `${imgObj.height}px`;
+                el.dataset.imgId = imgObj.id;
+
+                el.innerHTML = `<img src="${imgObj.dataUrl}" alt="">`;
+
+                if (board.imageEditMode) {
+                    const bar = document.createElement('div');
+                    bar.className = 'img-ctrl-bar';
+                    bar.innerHTML = `
+                        <span class="text-9 font-mono-code accent-text">⠿ Sposta</span>
+                        <div class="flex items-center gap-1">
+                            <button type="button" class="btn-lock-img text-9 font-mono-code px-1-5 py-0-5 rounded bg-sky-tint-25 text-sky-200 cursor-pointer">✓ Scrivi sopra</button>
+                            <button type="button" class="btn-del-img text-9 font-mono-code px-1-5 py-0-5 rounded bg-rose-tint-30 text-rose-200 cursor-pointer">✕</button>
+                        </div>
+                    `;
+
+                    const resizeHandle = document.createElement('div');
+                    resizeHandle.className = 'img-resize-handle';
+                    resizeHandle.textContent = '↘';
+
+                    let draggingImg = false;
+                    let startImg = { x: 0, y: 0, wx: 0, wy: 0 };
+
+                    bar.addEventListener('pointerdown', (ev) => {
+                        if (ev.target.closest('button')) return;
+                        ev.stopPropagation();
+                        draggingImg = true;
+                        startImg = { x: ev.clientX, y: ev.clientY, wx: imgObj.wx, wy: imgObj.wy };
+                    });
+
+                    const onMoveImg = (ev) => {
+                        if (!draggingImg) return;
+                        imgObj.wx = startImg.wx + (ev.clientX - startImg.x) / board.cam.zoom;
+                        imgObj.wy = startImg.wy + (ev.clientY - startImg.y) / board.cam.zoom;
+                        updateSpatialImagesTransform();
+                    };
+
+                    const onUpImg = () => {
+                        if (draggingImg) {
+                            draggingImg = false;
+                            scheduleCurrentBoardSave();
+                        }
+                    };
+
+                    window.addEventListener('pointermove', onMoveImg);
+                    window.addEventListener('pointerup', onUpImg);
+
+                    let resizingImg = false;
+                    let startRes = { x: 0, w: 0 };
+                    resizeHandle.addEventListener('pointerdown', (ev) => {
+                        ev.stopPropagation();
+                        resizingImg = true;
+                        startRes = { x: ev.clientX, w: imgObj.width };
+                    });
+
+                    const onMoveRes = (ev) => {
+                        if (!resizingImg) return;
+                        const nextW = Math.max(80, startRes.w + (ev.clientX - startRes.x) / board.cam.zoom);
+                        imgObj.width = nextW;
+                        imgObj.height = Math.round(nextW / (imgObj.aspect || 1));
+                        el.style.width = `${imgObj.width}px`;
+                        el.style.height = `${imgObj.height}px`;
+                    };
+
+                    const onUpRes = () => {
+                        if (resizingImg) {
+                            resizingImg = false;
+                            scheduleCurrentBoardSave();
+                        }
+                    };
+
+                    window.addEventListener('pointermove', onMoveRes);
+                    window.addEventListener('pointerup', onUpRes);
+
+                    bar.querySelector('.btn-lock-img').addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        toggleImageEditMode(false);
+                    });
+
+                    bar.querySelector('.btn-del-img').addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        board.images = board.images.filter(x => x.id !== imgObj.id);
+                        rebuildSpatialImagesDOM();
+                        scheduleCurrentBoardSave();
+                    });
+
+                    el.appendChild(bar);
+                    el.appendChild(resizeHandle);
+                }
+
+                spatialImagesLayer.appendChild(el);
+            }
+            updateSpatialImagesTransform();
+        }
+
+        function updateSpatialImagesTransform() {
+            for (const imgObj of board.images) {
+                const el = spatialImagesLayer.querySelector(`[data-img-id="${imgObj.id}"]`);
+                if (!el) continue;
+                const sp = worldToScreen(imgObj.wx, imgObj.wy);
+                el.style.left = `${sp.x}px`;
+                el.style.top = `${sp.y}px`;
+                el.style.transform = `scale(${board.cam.zoom})`;
+            }
+        }
+
+        /* --------------------------------------------------------------------------
+           5B. ESPORTAZIONE LAVAGNA IN PDF (OFFLINE PURO, MULTI-PAGINA A4 + IMMAGINI)
            -------------------------------------------------------------------------- */
         function mapColorForPrintPDF(hex) {
             const map = {
@@ -3323,18 +3730,28 @@
             return new Blob(chunks, { type: 'application/pdf' });
         }
 
+        function loadHTMLImage(src) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = () => resolve(null);
+                img.src = src;
+            });
+        }
+
         function exportBoardToPDF() {
             const hasStrokes = board.strokes.length > 0;
             const hasCards = board.cards.length > 0;
+            const hasImages = board.images.length > 0;
 
-            if (!hasStrokes && !hasCards) {
+            if (!hasStrokes && !hasCards && !hasImages) {
                 showSnapToast('⚠️ Lavagna vuota');
                 return;
             }
 
             showSnapToast('📄 Generazione PDF...');
 
-            setTimeout(() => {
+            setTimeout(async () => {
                 try {
                     const measureCanvas = document.createElement('canvas');
                     const mCtx = measureCanvas.getContext('2d');
@@ -3350,6 +3767,13 @@
                         if (s.minY - padS < minY) minY = s.minY - padS;
                         if (s.maxX + padS > maxX) maxX = s.maxX + padS;
                         if (s.maxY + padS > maxY) maxY = s.maxY + padS;
+                    }
+
+                    for (const imgObj of board.images) {
+                        if (imgObj.wx < minX) minX = imgObj.wx;
+                        if (imgObj.wy < minY) minY = imgObj.wy;
+                        if (imgObj.wx + imgObj.width > maxX) maxX = imgObj.wx + imgObj.width;
+                        if (imgObj.wy + imgObj.height > maxY) maxY = imgObj.wy + imgObj.height;
                     }
 
                     const cardLayouts = [];
@@ -3389,6 +3813,21 @@
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(0, 0, fullW, fullH);
 
+                    // 1. Disegna prima le immagini sotto i tratti
+                    for (const imgObj of board.images) {
+                        const loaded = await loadHTMLImage(imgObj.dataUrl);
+                        if (loaded) {
+                            ctx.drawImage(
+                                loaded,
+                                (imgObj.wx - minX) * scale,
+                                (imgObj.wy - minY) * scale,
+                                imgObj.width * scale,
+                                imgObj.height * scale
+                            );
+                        }
+                    }
+
+                    // 2. Disegna i tratti sopra le immagini
                     for (const stroke of board.strokes) {
                         const pts = stroke.points;
                         if (!pts || pts.length === 0) continue;
@@ -3427,6 +3866,7 @@
                         ctx.restore();
                     }
 
+                    // 3. Disegna le schede testo
                     for (const item of cardLayouts) {
                         const { card, cw, ch, lines } = item;
                         const cx = (card.wx - minX) * scale;
@@ -3517,8 +3957,32 @@
         }
 
         /* --------------------------------------------------------------------------
-           6. SCHEDE TESTO SPAZIALI + PARSING [[WIKILINKS]] SINAPTICI
+           6. SCHEDE TESTO SPAZIALI (SPOSTAMENTO FLUIDO SU TOUCH & MOUSE)
            -------------------------------------------------------------------------- */
+        let activeCardDrag = null;
+
+        window.addEventListener('pointermove', (ev) => {
+            if (!activeCardDrag) return;
+            const { card, startX, startY, startWx, startWy } = activeCardDrag;
+            card.wx = startWx + (ev.clientX - startX) / board.cam.zoom;
+            card.wy = startWy + (ev.clientY - startY) / board.cam.zoom;
+            updateSpatialCardsTransform();
+        });
+
+        window.addEventListener('pointerup', () => {
+            if (activeCardDrag) {
+                activeCardDrag = null;
+                scheduleCurrentBoardSave();
+            }
+        });
+
+        window.addEventListener('pointercancel', () => {
+            if (activeCardDrag) {
+                activeCardDrag = null;
+                scheduleCurrentBoardSave();
+            }
+        });
+
         function rebuildSpatialCardsDOM() {
             spatialCardsLayer.innerHTML = '';
             for (const card of board.cards) {
@@ -3528,8 +3992,8 @@
                 el.dataset.cardId = card.id;
 
                 el.innerHTML = `
-                    <div class="card-drag-bar flex items-center justify-between cursor-grab border-b-10 pb-1">
-                        <span class="text-9 font-mono-code uppercase tracking-wider accent-text">⠿ Nota Testo</span>
+                    <div class="card-drag-bar flex items-center justify-between border-b-10 pb-1">
+                        <span class="text-9 font-mono-code uppercase tracking-wider accent-text">⠿ Nota Testo (trascina)</span>
                         <button type="button" title="Elimina nota" class="btn-del-card text-11 text-rose-300 bg-rose-tint-15 hover-del px-2 py-0-5 rounded cursor-pointer">✕</button>
                     </div>
                     <textarea rows="3" placeholder="Scrivi testo o [[Nome Lavagna]]..."
@@ -3538,8 +4002,6 @@
 
                 const handle = el.querySelector('.card-drag-bar');
                 const delBtn = el.querySelector('.btn-del-card');
-                let dragging = false;
-                let start = { x: 0, y: 0, wx: 0, wy: 0 };
 
                 delBtn.addEventListener('pointerdown', (ev) => {
                     ev.stopPropagation();
@@ -3555,29 +4017,19 @@
                 handle.addEventListener('pointerdown', (ev) => {
                     if (ev.target.closest('.btn-del-card')) return;
                     ev.stopPropagation();
-                    dragging = true;
-                    start = { x: ev.clientX, y: ev.clientY, wx: card.wx, wy: card.wy };
-                    handle.setPointerCapture(ev.pointerId);
-                });
-
-                handle.addEventListener('pointermove', (ev) => {
-                    if (!dragging) return;
-                    card.wx = start.wx + (ev.clientX - start.x) / board.cam.zoom;
-                    card.wy = start.wy + (ev.clientY - start.y) / board.cam.zoom;
-                    updateSpatialCardsTransform();
-                });
-
-                handle.addEventListener('pointerup', (ev) => {
-                    if (dragging) {
-                        dragging = false;
-                        if (handle.hasPointerCapture(ev.pointerId)) {
-                            handle.releasePointerCapture(ev.pointerId);
-                        }
-                        scheduleCurrentBoardSave();
-                    }
+                    activeCardDrag = {
+                        card,
+                        startX: ev.clientX,
+                        startY: ev.clientY,
+                        startWx: card.wx,
+                        startWy: card.wy
+                    };
                 });
 
                 const ta = el.querySelector('textarea');
+                ta.addEventListener('pointerdown', (ev) => {
+                    ev.stopPropagation();
+                });
                 ta.addEventListener('input', () => {
                     card.text = ta.value;
                     scheduleCurrentBoardSave();
@@ -3642,8 +4094,11 @@
             board.cam = mem.viewport ? { ...mem.viewport } : { x: 0, y: 0, zoom: 1.0 };
             board.strokes = JSON.parse(JSON.stringify(mem.strokes || []));
             board.cards = JSON.parse(JSON.stringify(mem.cards || []));
+            board.images = JSON.parse(JSON.stringify(mem.images || []));
+            board.imageEditMode = false;
 
             resizeInfiniteBoard();
+            rebuildSpatialImagesDOM();
             rebuildSpatialCardsDOM();
         }
 
@@ -3662,6 +4117,7 @@
                 linked_neurons: [],
                 strokes: [],
                 cards: [],
+                images: [],
                 viewport: { x: 0, y: 0, zoom: 1.0 }
             };
 
@@ -3708,6 +4164,7 @@
                         linked_neurons: [],
                         strokes: [],
                         cards: [],
+                        images: [],
                         viewport: { x: 0, y: 0, zoom: 1.0 }
                     };
                     backendNeurons.push(target);
@@ -3741,6 +4198,7 @@
                 if (!mem) return;
                 mem.strokes = board.strokes;
                 mem.cards = board.cards;
+                mem.images = board.images;
                 mem.viewport = { ...board.cam };
                 mem.timestamp = new Date().toISOString();
 
@@ -3867,6 +4325,11 @@
             const pop = document.getElementById('synapse-picker-popover');
             if (wrapper && pop && !pop.classList.contains('hidden') && !wrapper.contains(e.target)) {
                 pop.classList.add('hidden');
+            }
+            const searchBox = document.getElementById('vault-search-box');
+            const searchPop = document.getElementById('search-results-popover');
+            if (searchBox && searchPop && !searchPop.classList.contains('hidden') && !searchBox.contains(e.target) && !searchPop.contains(e.target)) {
+                closeSearchPalette();
             }
         });
 
@@ -4092,6 +4555,8 @@
                 brainCanvas.height = Math.floor(bHeight * dpr);
                 brainCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
             }
+            updateCortexLayoutSpacing();
+            positionSearchPopover();
             resizeInfiniteBoard();
         }
 
@@ -4129,6 +4594,14 @@
                 if (savedPrefs.gridStyle) appState.gridStyle = savedPrefs.gridStyle;
             }
 
+            if (window.ResizeObserver) {
+                const headerEl = document.getElementById('main-stage-header');
+                const footerEl = document.getElementById('main-stage-footer');
+                const ro = new ResizeObserver(() => updateCortexLayoutSpacing());
+                if (headerEl) ro.observe(headerEl);
+                if (footerEl) ro.observe(footerEl);
+            }
+
             buildAnatomicalConnectome();
             resizeCanvas();
 
@@ -4142,15 +4615,14 @@
                     timestamp: new Date().toISOString(),
                     linked_neurons: [],
                     strokes: [],
-                    cards: [
-                        {
-                            id: 'c_intro',
-                            wx: -120,
-                            wy: -70,
-                            width: 245,
-                            text: 'Lavagna infinita illimitata.\n\n• Scrivi con la penna: tieni fermo mezzo secondo per raddrizzare linee, cerchi e quadrati.\n• Usa due dita per spostarti e zoomare.\n• Tocca 📄 PDF in basso per esportare gli appunti.'
-                        }
-                    ],
+                    images: [],
+                    cards: [{
+                        id: 'c_welcome',
+                        wx: -130,
+                        wy: -65,
+                        width: 265,
+                        text: 'Lavagna infinita pronta.\n• Disegna a mano libera o tieni fermo per raddrizzare linee, cerchi e rettangoli\n• Tocca 🖼️ Img (o incolla) per inserire immagini e scriverci sopra\n• Zoom fino al 1000% con due dita'
+                    }],
                     viewport: { x: 0, y: 0, zoom: 1.0 }
                 };
                 backendNeurons.push(welcome);
@@ -4160,21 +4632,21 @@
             const savedBackupTs = await ThalamDB.getMeta('last_backup_at');
             if (typeof savedBackupTs === 'number' && savedBackupTs > 0) {
                 lastBackupTimestamp = savedBackupTs;
-            } else if (!hasMeaningfulVaultContent()) {
-                lastBackupTimestamp = Date.now();
-                await ThalamDB.setMeta('last_backup_at', lastBackupTimestamp);
             }
             updateBackupReminderUI();
 
             rebuildSynapsesFromNeurons();
             bindBackendDataToConnectome();
-            openExistingNeuron(backendNeurons[0], backendNeurons[0]._mappedNodeCode || 'NODE');
 
-            requestAnimationFrame(animate);
+            if (backendNeurons.length > 0) {
+                openExistingNeuron(backendNeurons[0], backendNeurons[0]._mappedNodeCode || 'NODE');
+            }
 
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('./sw.js').catch(() => {});
             }
+
+            requestAnimationFrame(animate);
         };
     </script>
 </body>

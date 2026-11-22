@@ -324,12 +324,17 @@
         }
 
         /* Layer Immagini: sotto il canvas così puoi scriverci sopra con penna/evidenziatore */
+        /* Layer Immagini: z-index 1 quando bloccate (scrivi sopra), z-index 4 quando sbloccate (sposta/ridimensiona) */
         #spatial-images-layer {
             position: absolute;
             inset: 0;
             pointer-events: none;
             overflow: hidden;
             z-index: 1;
+        }
+
+        #spatial-images-layer.editing-images {
+            z-index: 4;
         }
 
         .spatial-image-item {
@@ -344,8 +349,13 @@
 
         .spatial-image-item.is-editable {
             pointer-events: auto;
-            border: 1.5px dashed rgba(var(--accent-rgb), 0.75);
-            box-shadow: 0 12px 30px -4px rgba(var(--accent-rgb), 0.32);
+            touch-action: none;
+            cursor: grab;
+            border: 1.5px dashed rgba(var(--accent-rgb), 0.85);
+            box-shadow: 0 12px 30px -4px rgba(var(--accent-rgb), 0.35);
+        }
+        .spatial-image-item.is-editable:active {
+            cursor: grabbing;
         }
 
         .spatial-image-item img {
@@ -378,15 +388,15 @@
             position: absolute;
             right: 0;
             bottom: 0;
-            width: 24px;
-            height: 24px;
-            background: rgba(var(--accent-rgb), 0.9);
+            width: 28px;
+            height: 28px;
+            background: rgba(var(--accent-rgb), 0.92);
             color: #030408;
             border-top-left-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
             touch-action: none;
             cursor: nwse-resize;
@@ -3516,8 +3526,37 @@
             }
         }
 
+        let activeImageInteraction = null;
+
+        window.addEventListener('pointermove', (ev) => {
+            if (!activeImageInteraction) return;
+            const { type, imgObj, el, startX, startY, startWx, startWy, startW } = activeImageInteraction;
+
+            if (type === 'drag') {
+                imgObj.wx = startWx + (ev.clientX - startX) / board.cam.zoom;
+                imgObj.wy = startWy + (ev.clientY - startY) / board.cam.zoom;
+                updateSpatialImagesTransform();
+            } else if (type === 'resize') {
+                const nextW = Math.max(80, startW + (ev.clientX - startX) / board.cam.zoom);
+                imgObj.width = nextW;
+                imgObj.height = Math.round(nextW / (imgObj.aspect || 1));
+                el.style.width = `${imgObj.width}px`;
+                el.style.height = `${imgObj.height}px`;
+            }
+        });
+
+        function endImageInteraction() {
+            if (!activeImageInteraction) return;
+            activeImageInteraction = null;
+            scheduleCurrentBoardSave();
+        }
+
+        window.addEventListener('pointerup', endImageInteraction);
+        window.addEventListener('pointercancel', endImageInteraction);
+
         function rebuildSpatialImagesDOM() {
             spatialImagesLayer.innerHTML = '';
+            spatialImagesLayer.classList.toggle('editing-images', board.imageEditMode);
             updateImageEditButtonUI();
 
             for (const imgObj of board.images) {
@@ -3544,65 +3583,39 @@
                     resizeHandle.className = 'img-resize-handle';
                     resizeHandle.textContent = '↘';
 
-                    let draggingImg = false;
-                    let startImg = { x: 0, y: 0, wx: 0, wy: 0 };
-
-                    bar.addEventListener('pointerdown', (ev) => {
-                        if (ev.target.closest('button')) return;
+                    // Trascina toccando un punto qualsiasi dell'immagine o della barra superiore
+                    el.addEventListener('pointerdown', (ev) => {
+                        if (ev.target.closest('button') || ev.target.closest('.img-resize-handle')) return;
                         ev.stopPropagation();
-                        draggingImg = true;
-                        startImg = { x: ev.clientX, y: ev.clientY, wx: imgObj.wx, wy: imgObj.wy };
+                        activeImageInteraction = {
+                            type: 'drag',
+                            imgObj,
+                            el,
+                            startX: ev.clientX,
+                            startY: ev.clientY,
+                            startWx: imgObj.wx,
+                            startWy: imgObj.wy
+                        };
                     });
 
-                    const onMoveImg = (ev) => {
-                        if (!draggingImg) return;
-                        imgObj.wx = startImg.wx + (ev.clientX - startImg.x) / board.cam.zoom;
-                        imgObj.wy = startImg.wy + (ev.clientY - startImg.y) / board.cam.zoom;
-                        updateSpatialImagesTransform();
-                    };
-
-                    const onUpImg = () => {
-                        if (draggingImg) {
-                            draggingImg = false;
-                            scheduleCurrentBoardSave();
-                        }
-                    };
-
-                    window.addEventListener('pointermove', onMoveImg);
-                    window.addEventListener('pointerup', onUpImg);
-
-                    let resizingImg = false;
-                    let startRes = { x: 0, w: 0 };
                     resizeHandle.addEventListener('pointerdown', (ev) => {
                         ev.stopPropagation();
-                        resizingImg = true;
-                        startRes = { x: ev.clientX, w: imgObj.width };
+                        activeImageInteraction = {
+                            type: 'resize',
+                            imgObj,
+                            el,
+                            startX: ev.clientX,
+                            startW: imgObj.width
+                        };
                     });
 
-                    const onMoveRes = (ev) => {
-                        if (!resizingImg) return;
-                        const nextW = Math.max(80, startRes.w + (ev.clientX - startRes.x) / board.cam.zoom);
-                        imgObj.width = nextW;
-                        imgObj.height = Math.round(nextW / (imgObj.aspect || 1));
-                        el.style.width = `${imgObj.width}px`;
-                        el.style.height = `${imgObj.height}px`;
-                    };
-
-                    const onUpRes = () => {
-                        if (resizingImg) {
-                            resizingImg = false;
-                            scheduleCurrentBoardSave();
-                        }
-                    };
-
-                    window.addEventListener('pointermove', onMoveRes);
-                    window.addEventListener('pointerup', onUpRes);
-
+                    bar.querySelector('.btn-lock-img').addEventListener('pointerdown', (ev) => ev.stopPropagation());
                     bar.querySelector('.btn-lock-img').addEventListener('click', (ev) => {
                         ev.stopPropagation();
                         toggleImageEditMode(false);
                     });
 
+                    bar.querySelector('.btn-del-img').addEventListener('pointerdown', (ev) => ev.stopPropagation());
                     bar.querySelector('.btn-del-img').addEventListener('click', (ev) => {
                         ev.stopPropagation();
                         board.images = board.images.filter(x => x.id !== imgObj.id);
@@ -4380,6 +4393,9 @@
 
         function setBoardTool(toolName, btnEl) {
             board.tool = toolName;
+            if (board.imageEditMode && (toolName === 'pen' || toolName === 'highlighter' || toolName === 'eraser')) {
+                toggleImageEditMode(false);
+            }
             document.querySelectorAll('.board-tool-btn').forEach(b => {
                 if (b === btnEl) {
                     b.className = 'board-tool-btn px-2-5 py-1-5 rounded-xl text-11 font-mono-code liquid-btn cursor-pointer';
